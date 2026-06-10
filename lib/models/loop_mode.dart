@@ -1,0 +1,1 @@
+enum LoopMode { one, all }
