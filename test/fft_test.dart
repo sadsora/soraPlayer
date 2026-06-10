@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:soraplayer02/services/pcm_decoder_service.dart';
-import 'package:soraplayer02/services/fft_analyzer_service.dart';
+import 'package:soraplayer/services/pcm_decoder_service.dart';
+import 'package:soraplayer/services/fft_analyzer_service.dart';
 
 void main() {
   // ---- 1. 生成 440Hz 正弦波（A4 音），时长 2 秒 ----

@@ -1,4 +1,4 @@
-package com.example.soraplayer02
+package com.example.soraplayer
 
 import android.os.Build
 import android.os.Bundle

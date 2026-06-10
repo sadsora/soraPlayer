@@ -5,7 +5,7 @@ if(WIN32)
   add_custom_command(TARGET mp3_decoder POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "$<TARGET_FILE:mp3_decoder>"
-      "$<TARGET_FILE_DIR:soraplayer02>"
+      "$<TARGET_FILE_DIR:soraplayer>"
     COMMENT "Copying mp3_decoder.dll to executable directory"
   )
 endif()

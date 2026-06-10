@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:soraplayer02/models/gradient_color.dart';
+import 'package:soraplayer/models/gradient_color.dart';
 import '../models/song.dart';
 import '../models/fftframe.dart';
 import '../services/audio_reader_service.dart';

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soraplayer02/services/fft_analyzer_service.dart';
-import 'package:soraplayer02/services/pcm_decoder_service.dart';
+import 'package:soraplayer/services/fft_analyzer_service.dart';
+import 'package:soraplayer/services/pcm_decoder_service.dart';
 
 void main() {
   test('FFT analysis produces correct number of frames', () {

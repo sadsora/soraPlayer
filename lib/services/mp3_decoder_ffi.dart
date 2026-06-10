@@ -2,7 +2,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
-import 'package:soraplayer02/services/pcm_decoder_service.dart';
+import 'package:soraplayer/services/pcm_decoder_service.dart';
 
 final DynamicLibrary _lib = Platform.isAndroid
     ? DynamicLibrary.open('libmp3_decoder.so')
