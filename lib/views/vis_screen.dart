@@ -22,7 +22,7 @@ class _VisScreenState extends State<VisScreen>
   Duration _lastElapsed = Duration.zero;
   VisMode _currentMode = VisMode.radial;
 
-  // ——— 手势 seek ———
+  //手势 seek
   bool _isDragging = false;
   double _dragValue = 0.0;
 
