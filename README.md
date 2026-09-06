@@ -1,4 +1,4 @@
-# Sora Player v0.3
+# Sora Player v0.4
 
 一个基于 Flutter 的本地音频播放器，支持 FFT 实时频谱可视化。
 

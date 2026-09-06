@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "sora player v0.3",
+      title: "sora player v0.4",
       theme: ThemeData(
         fontFamily: 'PingFang',
         brightness: Brightness.dark,

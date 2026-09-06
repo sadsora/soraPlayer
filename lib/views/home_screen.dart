@@ -9,7 +9,7 @@ class HomeScreen extends StatelessWidget {
       body: Center(
         child: ElevatedButton(
           onPressed: () => Navigator.pushNamed(context, '/play'),
-          child: const Text("Sora Player v0.3"),
+          child: const Text("Sora Player v0.4"),
         ),
       ),
     );
