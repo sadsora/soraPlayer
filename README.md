@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **本地音频播放** — 支持 MP3 / WAV 等常见格式，通过 media_kit（libmpv 后端）驱动
+- **本地音频播放** — 支持 MP3 / FLAC / WAV 等常见格式，通过 media_kit（libmpv 后端）驱动
 - **4 种 FFT 频谱可视化** — Line / Circle / Poly / Radial，实时跟随播放进度
 - **专辑封面提取 + 自动配色** — 从音频元数据中读取封面，通过 PaletteGenerator 提取 vibrant/muted 色彩作为背景渐变
 - **可切换的主题渐变** — 内置多套渐变色系，一键切换可视化配色
@@ -12,7 +12,7 @@
 - **手势 Seek** — 在可视化界面横向拖动跳转播放位置
 - **多种导入方式** — 可单选/多选文件，也可通过 `.txt` 播放列表批量导入
 - **沉浸式全屏** — Android 端 edge-to-edge，状态栏/导航栏透明覆盖
-- **MP3 解码 (FFI)** — 通过 Dart FFI 调用原生 C 解码库（基于 minimp3），将 MP3 转为 PCM 供 FFT 分析
+- **音频解码 (FFI)** — 通过 Dart FFI 调用原生 C 解码库（MP3 基于 minimp3、FLAC 基于 dr_flac），将音频转为 PCM 供 FFT 分析
 
 ## 平台支持
 
@@ -30,7 +30,7 @@
 | -------- | -------------------------------------------- |
 | 框架     | Flutter (Dart SDK ^3.11.5)                   |
 | 音频播放 | [media_kit](https://pub.dev/packages/media_kit) + libmpv |
-| 音频解码 | `dart:ffi` → minimp3 C 解码器                   |
+| 音频解码 | `dart:ffi` → minimp3 (MP3) + dr_flac (FLAC) C 解码器 |
 | FFT 分析 | [fftea](https://pub.dev/packages/fftea) (Dart 原生 FFT) |
 | 封面配色 | `palette_generator_master`                    |
 | 文件选择 | [file_picker](https://pub.dev/packages/file_picker) |
@@ -49,10 +49,11 @@ lib/
 │   └── play_viewmodel.dart       # 播放状态中枢（单例 ChangeNotifier）
 ├── services/
 │   ├── audio_reader_service.dart # media_kit 音频播放封装
-│   ├── audio_metadata_reader.dart# ID3/元数据读取
+│   ├── audio_metadata_reader.dart# ID3(MP3)/Vorbis(FLAC) 元数据读取
 │   ├── fft_analyzer_service.dart # FFT 频谱分析（Isolate 异步）
-│   ├── pcm_decoder_service.dart  # PCM 解码调度（MP3 → WAV）
-│   ├── mp3_decoder_ffi.dart      # FFI 桥接层（C 解码器）
+│   ├── pcm_decoder_service.dart  # PCM 解码调度（MP3 / FLAC / WAV）
+│   ├── mp3_decoder_ffi.dart      # FFI 桥接层（minimp3 C 解码器）
+│   ├── flac_decoder_ffi.dart     # FFI 桥接层（dr_flac C 解码器）
 │   └── PaletteService.dart       # 封面图像解码 + 调色板提取
 ├── models/
 │   ├── song.dart                 # 歌曲数据模型
@@ -72,6 +73,21 @@ lib/
     └── app_gradients.dart        # 预设渐变色方案
 ```
 
+原生解码器位于 `native/`（通过 FFI 暴露给 Dart）：
+
+```
+native/
+├── CMakeLists.txt                # 顶层：同时构建 mp3 + flac
+├── mp3_decoder/
+│   ├── mp3_decoder.c             # minimp3 解码器
+│   ├── minimp3.h
+│   └── CMakeLists.txt
+└── flac_decoder/
+    ├── flac_decoder.c            # dr_flac 解码器
+    ├── dr_flac.h
+    └── CMakeLists.txt
+```
+
 ## 前置依赖
 
 ### Windows
@@ -83,11 +99,11 @@ windows/libmpv/libmpv-2.dll      # 开发时
 build/windows/x64/runner/Debug/  # 运行时
 ```
 
-还需要 **mp3_decoder.dll**（基于 minimp3 的 C 解码器）放置在可被 `DynamicLibrary.open()` 找到的位置。
+还需要 **mp3_decoder.dll** 和 **flac_decoder.dll**（分别基于 minimp3 / dr_flac 的 C 解码器）。它们由 `native/` 下的 CMake 在构建时自动生成并拷贝到可执行目录，无需手动放置。
 
 ### Android
 
-需要 `libmp3_decoder.so`（基于 minimp3 的 C 解码器 Android 编译版本）。
+需要 `libmp3_decoder.so` 和 `libflac_decoder.so`（基于 minimp3 / dr_flac 的 C 解码器 Android 编译版本），由 `native/CMakeLists.txt` 构建。
 
 ### 所有平台
 

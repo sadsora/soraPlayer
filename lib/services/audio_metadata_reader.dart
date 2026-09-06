@@ -9,8 +9,21 @@ class AudioMetadataReader {
     if (!await file.exists()) return null;
 
     final raf = await file.open(mode: FileMode.read);
+
     try {
-      final header = await raf.read(10);
+      final magic = await raf.read(4);
+      if (magic.length < 4) return _fallback(filePath);
+
+      //FLAC
+      if (latin1.decode(magic) == "fLaC") {
+        return await _readFlacMetadata(raf, filePath);
+      }
+      if (utf8.decode(magic.sublist(0, 3)) != "ID3") {
+        return _fallback(filePath);
+      }
+      final rest = await raf.read(6);
+      if (rest.length < 6) return _fallback(filePath);
+      final header = [...magic, ...rest];
       if (header.length < 10) return _fallback(filePath);
 
       if (utf8.decode(header.sublist(0, 3)) != 'ID3') {
@@ -67,9 +80,122 @@ class AudioMetadataReader {
         filePath: filePath,
         cover: cover,
       );
+    } catch (e, st) {
+      print('AudioMetadataReader error ($filePath): $e\n$st');
+      return _fallback(filePath);
     } finally {
       await raf.close();
     }
+  }
+
+  //FLAC decoder
+  static Future<Song> _readFlacMetadata(
+    RandomAccessFile raf,
+    String filePath,
+  ) async {
+    String? title, album, artist;
+    Uint8List? cover;
+    bool isLast = false;
+    while (!isLast) {
+      final header = await raf.read(4);
+      if (header.length < 4) break;
+
+      isLast = (header[0] & 0x80) != 0;
+      final type = header[0] & 0x7F;
+      final length = _int24(header, 1); // 大端
+
+      final data = await raf.read(length);
+      if (data.length < length) break;
+
+      switch (type) {
+        case 4: // VORBIS_COMMENT
+          final tags = _parseVorbisComment(data);
+          title = tags['TITLE'] ?? title;
+          artist = tags['ARTIST'] ?? artist;
+          album = tags['ALBUM'] ?? album;
+        case 6: // PICTURE
+          cover ??= _parseFlacPicture(data);
+      }
+    }
+
+    return Song(
+      title: title ?? _filenameFromPath(filePath),
+      artist: artist ?? 'Unknown Artist',
+      album: album ?? 'Unknown Album',
+      filePath: filePath,
+      cover: cover,
+    );
+  }
+
+  static Map<String, String> _parseVorbisComment(List<int> data) {
+    final result = <String, String>{};
+    if (data.length < 4) return result;
+
+    int pos = 0;
+    final vendorLen = _leInt32(data, pos); // 小端
+    pos += 4 + vendorLen;
+    if (pos + 4 > data.length) return result;
+
+    final count = _leInt32(data, pos); // 小端
+    pos += 4;
+
+    for (int i = 0; i < count; i++) {
+      if (pos + 4 > data.length) break;
+      final len = _leInt32(data, pos); // 小端
+      pos += 4;
+      if (pos + len > data.length) break;
+
+      final bytes = data.sublist(pos, pos + len);
+      String raw;
+      try {
+        raw = utf8.decode(bytes);
+      } on FormatException {
+        raw = latin1.decode(bytes);
+      }
+      pos += len;
+
+      final eq = raw.indexOf('=');
+      if (eq > 0) {
+        result[raw.substring(0, eq).toUpperCase()] = raw.substring(eq + 1);
+      }
+    }
+    return result;
+  }
+
+  static Uint8List? _parseFlacPicture(List<int> data) {
+    int pos = 4; // 跳过 picture type (4 字节)
+    if (pos + 4 > data.length) return null;
+
+    final mimeLen = _int32(data, pos); // 大端
+    pos += 4;
+    if (pos + mimeLen > data.length) return null;
+    pos += mimeLen;
+
+    if (pos + 4 > data.length) return null;
+    final descLen = _int32(data, pos); // 大端
+    pos += 4;
+    if (pos + descLen > data.length) return null;
+    pos += descLen;
+
+    pos += 16; // width(4) + height(4) + depth(4) + colors(4)
+
+    if (pos + 4 > data.length) return null;
+    final picLen = _int32(data, pos); // 大端
+    pos += 4;
+    if (pos + picLen > data.length) return null;
+
+    return Uint8List.fromList(data.sublist(pos, pos + picLen));
+  }
+
+  static int _int24(List<int> bytes, int start) {
+    return (bytes[start] << 16) | (bytes[start + 1] << 8) | bytes[start + 2];
+  }
+
+  static int _leInt32(List<int> bytes, int start) {
+    return bytes[start] |
+        (bytes[start + 1] << 8) |
+        (bytes[start + 2] << 16) |
+        (bytes[start + 3] << 24);
   }
 
   static Song _fallback(String filePath) {

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:io';
 import 'mp3_decoder_ffi.dart';
+import 'flac_decoder_ffi.dart';
 
 class WavInfo {
   final int sampleRate;
@@ -22,10 +23,11 @@ class WavInfo {
 class PCMDecoderService {
   Future<WavInfo> decode(String filePath) async {
     final ext = filePath.split('.').last.toLowerCase();
-    if (ext != 'wav' && ext != 'wave') {
-      if (ext == 'mp3') {
-        return decodeMp3(filePath);
-      }
+    if (ext == 'mp3') {
+      return decodeMp3(filePath);
+    }
+    if (ext == 'flac') {
+      return decodeFlac(filePath);
     }
     return decodeWav(filePath);
   }

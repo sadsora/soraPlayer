@@ -36,7 +36,7 @@ android {
 
     externalNativeBuild {
         cmake {
-            path = file("../../native/mp3_decoder/CMakeLists.txt")
+            path = file("../../native/CMakeLists.txt")
         }
     }
 

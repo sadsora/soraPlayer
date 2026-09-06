@@ -18,7 +18,8 @@ class _PlayScreenState extends State<PlayScreen> {
 
   Future<void> _pickAudioFiles() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
+      type: FileType.custom,
+      allowedExtensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'midi'],
       allowMultiple: true,
     );
     if (result != null && result.files.isNotEmpty) {
@@ -32,7 +33,7 @@ class _PlayScreenState extends State<PlayScreen> {
 
   Future<void> _pickAudioList() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
+      type: FileType.custom,
       allowMultiple: false,
       allowedExtensions: ['txt'],
     );

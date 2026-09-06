@@ -107,4 +107,4 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
 
-add_subdirectory(../native/mp3_decoder ${CMAKE_CURRENT_BINARY_DIR}/mp3_decoder)
+add_subdirectory(../native ${CMAKE_CURRENT_BINARY_DIR}/native)
