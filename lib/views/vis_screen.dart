@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import '../view_models/play_viewmodel.dart';
@@ -26,6 +28,11 @@ class _VisScreenState extends State<VisScreen>
   bool _isDragging = false;
   double _dragValue = 0.0;
 
+  //自动隐藏 UI(无操作 N 秒后淡出,点击任意处重新显示)
+  bool _uiVisible = true;
+  Timer? _hideTimer;
+  static const _hideAfter = Duration(seconds: 3);
+
   // ticker
 
   @override
@@ -36,6 +43,7 @@ class _VisScreenState extends State<VisScreen>
       _lastElapsed = elapsed;
       _viewmodel.tick(delta);
     })..start();
+    _resetUiTimer();
   }
 
   CustomPainter _getCurrentMode(double progress) {
@@ -66,6 +74,26 @@ class _VisScreenState extends State<VisScreen>
     });
   }
 
+  void _resetUiTimer() {
+    _hideTimer?.cancel();
+    if (!_uiVisible) {
+      setState(() => _uiVisible = true);
+    }
+    _hideTimer = Timer(_hideAfter, () {
+      if (mounted && !_isDragging) {
+        setState(() => _uiVisible = false);
+      }
+    });
+  }
+
+  Widget _uiFade(Widget child) {
+    return AnimatedOpacity(
+      opacity: _uiVisible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 200),
+      child: IgnorePointer(ignoring: !_uiVisible, child: child),
+    );
+  }
+
   //手势seek
   void _onDragStart(DragStartDetails _) {
     setState(() {
@@ -83,11 +111,13 @@ class _VisScreenState extends State<VisScreen>
   void _onDragEnd(DragEndDetails _) {
     setState(() => _isDragging = false);
     _viewmodel.seek((_dragValue * _viewmodel.duration).toInt());
+    _resetUiTimer();
   }
 
   @override
   void dispose() {
     _ticker.dispose();
+    _hideTimer?.cancel();
     super.dispose();
   }
 
@@ -102,144 +132,161 @@ class _VisScreenState extends State<VisScreen>
             : (_viewmodel.progress ?? 0.0);
 
         return Scaffold(
-          body: Stack(
-            children: [
-              //全屏模糊封面背景
-              Positioned.fill(
-                child: _viewmodel.cover != null
-                    ? RepaintBoundary(
-                        child: ImageFiltered(
-                          imageFilter: ui.ImageFilter.blur(
-                            sigmaX: 30,
-                            sigmaY: 30,
+          body: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _resetUiTimer(),
+            child: Stack(
+              children: [
+                //全屏模糊封面背景
+                Positioned.fill(
+                  child: _viewmodel.cover != null
+                      ? RepaintBoundary(
+                          child: ImageFiltered(
+                            imageFilter: ui.ImageFilter.blur(
+                              sigmaX: 30,
+                              sigmaY: 30,
+                            ),
+                            child: Image.memory(
+                              _viewmodel.cover!,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                          child: Image.memory(
-                            _viewmodel.cover!,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      )
-                    : Container(color: _viewmodel.bgColor),
-              ),
+                        )
+                      : Container(color: _viewmodel.bgColor),
+                ),
 
-              //暗色遮罩
-              Positioned.fill(
-                child: Container(color: Colors.black.withValues(alpha: 0.7)),
-              ),
+                //暗色遮罩
+                Positioned.fill(
+                  child: Container(color: Colors.black.withValues(alpha: 0.7)),
+                ),
 
-              //频谱可视化 手势seek层
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onHorizontalDragStart: _onDragStart,
-                  onHorizontalDragUpdate: (d) => _onDragUpdate(d, screenW),
-                  onHorizontalDragEnd: _onDragEnd,
-                  child: RepaintBoundary(
-                    child: CustomPaint(
-                      painter: _getCurrentMode(barProgress),
-                      size: Size.infinite,
+                //频谱可视化 手势seek层
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onHorizontalDragStart: _onDragStart,
+                    onHorizontalDragUpdate: (d) => _onDragUpdate(d, screenW),
+                    onHorizontalDragEnd: _onDragEnd,
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        painter: _getCurrentMode(barProgress),
+                        size: Size.infinite,
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              //拖拽时显示浮动时间
-              if (_isDragging)
+                //拖拽时显示浮动时间
+                if (_isDragging)
+                  Positioned(
+                    top: 60,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _formatDragTime(
+                            (_dragValue * _viewmodel.duration).toInt(),
+                          ),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                //FPS指示器（仅debug）
+                const Positioned(top: 8, right: 20, child: FpsCounter()),
+                //顶部返回按钮
                 Positioned(
-                  top: 60,
+                  top: 0,
                   left: 0,
                   right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _formatDragTime(
-                          (_dragValue * _viewmodel.duration).toInt(),
+                  child: _uiFade(
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.w600,
+                        child: Row(
+                          children: [
+                            GlassButton(
+                              icon: Icons.keyboard_backspace_rounded,
+                              onPressed: () => Navigator.pop(context),
+                              useBlur: true,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ),
 
-              //FPS指示器（仅debug）
-              const Positioned(top: 8, right: 20, child: FpsCounter()),
-              //顶部返回按钮
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      children: [
-                        GlassButton(
-                          icon: Icons.keyboard_backspace_rounded,
-                          onPressed: () => Navigator.pop(context),
-                          useBlur: true,
-                        ),
-                      ],
+                //进度条
+                Positioned(
+                  bottom: 72,
+                  left: 0,
+                  right: 0,
+                  child: _uiFade(const ProgressBar()),
+                ),
+
+                //底部按钮
+                Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: _uiFade(
+                    SafeArea(
+                      top: false,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GlassButton(
+                            icon: Icons.change_circle_outlined,
+                            onPressed: _switchMode,
+                            useBlur: true,
+                          ),
+                          const SizedBox(width: 24),
+                          GlassButton(
+                            icon: _viewmodel.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                            onPressed: () {
+                              if (_viewmodel.isPlaying) {
+                                _viewmodel.pause();
+                              } else {
+                                _viewmodel.resume();
+                              }
+                            },
+                            useBlur: true,
+                          ),
+                          const SizedBox(width: 24),
+                          GlassButton(
+                            icon: Icons.palette,
+                            onPressed: () => _viewmodel.setColor(),
+                            // label: "主题色",
+                            useBlur: true,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-
-              //进度条
-              Positioned(
-                bottom: 72,
-                left: 0,
-                right: 0,
-                child: const ProgressBar(),
-              ),
-
-              //底部按钮
-              Positioned(
-                bottom: 16,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  top: false,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GlassButton(
-                        icon: Icons.change_circle_outlined,
-                        onPressed: _switchMode,
-                        // label: _currentModeIdx == 1
-                        //     ? "Line"
-                        //     : _currentModeIdx == 2
-                        //     ? "Circle"
-                        //     : "Poly",
-                        useBlur: true,
-                      ),
-                      const SizedBox(width: 24),
-                      GlassButton(
-                        icon: Icons.palette,
-                        onPressed: () => _viewmodel.setColor(),
-                        // label: "主题色",
-                        useBlur: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

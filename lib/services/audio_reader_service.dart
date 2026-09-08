@@ -5,7 +5,7 @@ import '../models/song.dart';
 class AudioReaderService {
   static final AudioReaderService instance = AudioReaderService._();
   AudioReaderService._() {
-    //print("AudioReaderService initialized");
+    print("AudioReaderService initialized");
     _player.stream.playing.listen((playing) {
       if (playing) {
         _isPlaying = true;
@@ -18,7 +18,6 @@ class AudioReaderService {
   final Player _player = Player();
   Player get player => _player;
   bool _isPlaying = false;
-  bool get isPlaying => _isPlaying;
 
   static const double _defaultTargetVolume = 60.0;
   static const Duration _defaultFadeDuration = Duration(seconds: 2);
@@ -27,6 +26,7 @@ class AudioReaderService {
   Stream<bool> get onCompleted => _player.stream.completed;
   Stream<Duration> get onPosition => _player.stream.position;
   Stream<Duration> get onDuration => _player.stream.duration;
+  Stream<bool> get onPlaying => _player.stream.playing;
 
   /// 普通播放
   Future<void> playAudio(Song song) async {

@@ -32,6 +32,16 @@ class PlayViewmodel extends ChangeNotifier {
       _duration = d.inMilliseconds;
       notifyListeners();
     });
+    _audioService.onPlaying.listen((playing) {
+      if (playing) {
+        isPlaying = true;
+        print("[isPlaying changing]:$isPlaying");
+      } else {
+        isPlaying = false;
+        print("[isPlaying changing]:$isPlaying");
+      }
+      notifyListeners();
+    });
   }
 
   final AudioReaderService _audioService = AudioReaderService.instance;
@@ -57,7 +67,7 @@ class PlayViewmodel extends ChangeNotifier {
   String artist = "";
   String album = "";
   Uint8List? cover;
-  bool get isPlaying => _audioService.isPlaying;
+  bool isPlaying = false;
   LoopMode get loopMode => _loopMode;
   int get currentTime => _currentTime;
   int get duration => _duration;
@@ -95,12 +105,14 @@ class PlayViewmodel extends ChangeNotifier {
     if (_currentIndex < 0) return;
 
     await _audioService.resume();
+    print("[resume] isPlaying:$isPlaying");
     notifyListeners();
   }
 
   Future<void> pause() async {
     if (_currentIndex < 0) return;
     await _audioService.fadeOutAndPause();
+    print("[pause] isPlaying:$isPlaying");
     notifyListeners();
   }
 
@@ -113,6 +125,7 @@ class PlayViewmodel extends ChangeNotifier {
   Future<void> stop() async {
     await _audioService.stop();
     _currentIndex = -1;
+    print("[stop] isPlaying:$isPlaying");
     notifyListeners();
   }
 
