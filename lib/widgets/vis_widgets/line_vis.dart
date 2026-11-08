@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/fftframe.dart';
+import '../../models/fftframe.dart';
 
 class LineVis extends CustomPainter {
   FftFrame? spec;

@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../models/fftframe.dart';
+import '../../models/fftframe.dart';
 
 class PolyVis extends CustomPainter {
   final FftFrame? spec;
@@ -25,7 +25,7 @@ class PolyVis extends CustomPainter {
     final bands = spec?.bands;
     if (bands == null) return;
     final bandsNum = bands.length - 18;
-    final center = Offset(size.width / 2, size.height / 2 - size.height / 10);
+    final center = Offset(size.width / 2, size.height / 2);
     final innerRadius = size.width / 6;
     final outerRadius = innerRadius + size.width / 100;
     final imgRadius = size.width / 8;

@@ -214,7 +214,9 @@ class _PlayScreenState extends State<PlayScreen> {
                       ),
                       const SizedBox(width: 16),
                       GlassButton(
-                        icon: Icons.music_note_outlined,
+                        icon: (_viewmodel.spectrum != null)
+                            ? Icons.music_note_outlined
+                            : Icons.music_off_outlined,
                         onPressed: _viewmodel.spectrum != null
                             ? () => Navigator.pushNamed(context, '/vis')
                             : null,

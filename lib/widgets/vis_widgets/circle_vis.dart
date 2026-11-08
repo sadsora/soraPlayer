@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../models/fftframe.dart';
+import '../../models/fftframe.dart';
 
 class CircleVis extends CustomPainter {
   FftFrame? spec;

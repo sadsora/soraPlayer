@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import '../view_models/play_viewmodel.dart';
+import '../services/immersive_service.dart';
 import '../widgets/glass_button.dart';
 import '../widgets/progress_bar.dart';
 import '../widgets/fps_counter.dart';
@@ -23,10 +24,6 @@ class _VisScreenState extends State<VisScreen>
   final _viewmodel = PlayViewmodel.instance;
   Duration _lastElapsed = Duration.zero;
   VisMode _currentMode = VisMode.radial;
-
-  //手势 seek
-  bool _isDragging = false;
-  double _dragValue = 0.0;
 
   //自动隐藏 UI(无操作 N 秒后淡出,点击任意处重新显示)
   bool _uiVisible = true;
@@ -80,7 +77,7 @@ class _VisScreenState extends State<VisScreen>
       setState(() => _uiVisible = true);
     }
     _hideTimer = Timer(_hideAfter, () {
-      if (mounted && !_isDragging) {
+      if (mounted) {
         setState(() => _uiVisible = false);
       }
     });
@@ -92,26 +89,6 @@ class _VisScreenState extends State<VisScreen>
       duration: const Duration(milliseconds: 200),
       child: IgnorePointer(ignoring: !_uiVisible, child: child),
     );
-  }
-
-  //手势seek
-  void _onDragStart(DragStartDetails _) {
-    setState(() {
-      _isDragging = true;
-      _dragValue = _viewmodel.progress ?? 0.0;
-    });
-  }
-
-  void _onDragUpdate(DragUpdateDetails d, double screenWidth) {
-    setState(() {
-      _dragValue = (_dragValue + d.delta.dx / screenWidth).clamp(0.0, 1.0);
-    });
-  }
-
-  void _onDragEnd(DragEndDetails _) {
-    setState(() => _isDragging = false);
-    _viewmodel.seek((_dragValue * _viewmodel.duration).toInt());
-    _resetUiTimer();
   }
 
   @override
@@ -126,10 +103,7 @@ class _VisScreenState extends State<VisScreen>
     return ListenableBuilder(
       listenable: _viewmodel,
       builder: (context, child) {
-        final double screenW = MediaQuery.of(context).size.width;
-        final double barProgress = _isDragging
-            ? _dragValue
-            : (_viewmodel.progress ?? 0.0);
+        final double barProgress = _viewmodel.progress ?? 0.0;
 
         return Scaffold(
           body: Listener(
@@ -160,52 +134,15 @@ class _VisScreenState extends State<VisScreen>
                   child: Container(color: Colors.black.withValues(alpha: 0.7)),
                 ),
 
-                //频谱可视化 手势seek层
+                //频谱可视化
                 Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onHorizontalDragStart: _onDragStart,
-                    onHorizontalDragUpdate: (d) => _onDragUpdate(d, screenW),
-                    onHorizontalDragEnd: _onDragEnd,
-                    child: RepaintBoundary(
-                      child: CustomPaint(
-                        painter: _getCurrentMode(barProgress),
-                        size: Size.infinite,
-                      ),
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _getCurrentMode(barProgress),
+                      size: Size.infinite,
                     ),
                   ),
                 ),
-
-                //拖拽时显示浮动时间
-                if (_isDragging)
-                  Positioned(
-                    top: 60,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _formatDragTime(
-                            (_dragValue * _viewmodel.duration).toInt(),
-                          ),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontFamily: 'monospace',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
 
                 //FPS指示器（仅debug）
                 const Positioned(top: 8, right: 20, child: FpsCounter()),
@@ -280,6 +217,21 @@ class _VisScreenState extends State<VisScreen>
                             // label: "主题色",
                             useBlur: true,
                           ),
+                          //无边框全屏开关(仅桌面端，安卓无此概念)
+                          if (ImmersiveService.instance.supported) ...[
+                            const SizedBox(width: 24),
+                            ListenableBuilder(
+                              listenable: ImmersiveService.instance,
+                              builder: (context, _) => GlassButton(
+                                icon: ImmersiveService.instance.isImmersive
+                                    ? Icons.fullscreen_exit
+                                    : Icons.fullscreen,
+                                onPressed: () =>
+                                    ImmersiveService.instance.toggle(),
+                                useBlur: true,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -292,11 +244,4 @@ class _VisScreenState extends State<VisScreen>
       },
     );
   }
-}
-
-String _formatDragTime(int ms) {
-  final totalSec = (ms / 1000).round();
-  final min = totalSec ~/ 60;
-  final sec = totalSec % 60;
-  return '$min:${sec.toString().padLeft(2, '0')}';
 }
