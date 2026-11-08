@@ -86,12 +86,51 @@ class PlayViewmodel extends ChangeNotifier {
     album = song.album;
     cover = song.cover;
     await _audioService.playAudio(song);
-    coverImg = await Paletteservice.decodeImage(cover!);
-    final palette = await Paletteservice.extract(coverImg!);
-    vibrantColor = palette.vibrantColor;
-    mutedColor = palette.mutedColor;
+    // 先把解码派发出去，封面缺失/损坏不再阻断 FFT/PCM 这条链
+    _loadFftDataInBackground(song);
+    await _applyCoverArt();
     notifyListeners();
-    _loadFftDataInBackground(playlist[index]);
+  }
+
+  /// 无封面或封面无法解码时使用的淡色底图颜色。
+  /// 取接近页面背景的浅灰蓝，改这一处即可换颜色。
+  static const Color _fallbackCoverColor = Color(0xFFF2F3F5);
+
+  /// 兜底纯色图的 PNG 字节，只生成一次
+  static Uint8List? _fallbackCoverBytes;
+
+  /// 解析封面并取色；封面缺失或损坏时退化为一张纯色图。
+  Future<void> _applyCoverArt() async {
+    ui.Image? image;
+    Color? vibrant;
+    Color? muted;
+
+    final bytes = cover;
+    if (bytes != null) {
+      try {
+        image = await Paletteservice.decodeImage(bytes);
+        final palette = await Paletteservice.extract(image);
+        vibrant = palette.vibrantColor;
+        muted = palette.mutedColor;
+      } catch (e) {
+        debugPrint('封面解析失败，使用淡色底图兜底: $e');
+        image = null;
+      }
+    }
+
+    if (image == null) {
+      // 现场生成纯色图，不需要任何资源文件
+      image = await Paletteservice.solidColorImage(_fallbackCoverColor);
+      vibrant ??= _fallbackCoverColor;
+      muted ??= _fallbackCoverColor;
+      // 让圆形封面、可视化页的模糊背景也用同一张纯色图，而不是音符占位
+      cover = _fallbackCoverBytes ??=
+          await Paletteservice.solidColorPng(_fallbackCoverColor);
+    }
+
+    coverImg = image;
+    vibrantColor = vibrant;
+    mutedColor = muted;
   }
 
   Future<void> removeSong(Song song) async {
@@ -155,12 +194,9 @@ class PlayViewmodel extends ChangeNotifier {
     album = song.album;
     cover = song.cover;
     await _audioService.playAudioWithFadeIn(song);
-    coverImg = await Paletteservice.decodeImage(cover!);
-    final palette = await Paletteservice.extract(coverImg!);
-    vibrantColor = palette.vibrantColor;
-    mutedColor = palette.mutedColor;
-    notifyListeners();
     _loadFftDataInBackground(song);
+    await _applyCoverArt();
+    notifyListeners();
   }
 
   Future<void> playLast() async {
@@ -175,12 +211,9 @@ class PlayViewmodel extends ChangeNotifier {
     album = song.album;
     cover = song.cover;
     await _audioService.playAudio(song);
-    coverImg = await Paletteservice.decodeImage(cover!);
-    final palette = await Paletteservice.extract(coverImg!);
-    vibrantColor = palette.vibrantColor;
-    mutedColor = palette.mutedColor;
-    notifyListeners();
     _loadFftDataInBackground(song);
+    await _applyCoverArt();
+    notifyListeners();
   }
 
   Future<void> addFromPaths(List<String> paths) async {
